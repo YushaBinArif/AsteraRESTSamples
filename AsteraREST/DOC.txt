@@ -1,0 +1,22 @@
+﻿/*
+ *  Following samples are present in the file:
+ *  
+ *  1. Get bearer access token from the Server
+ *      
+ *     https://<SERVERNAME>:9260/api/account/login
+ *  
+ *  
+ *  2. Start a Job on the server
+ *  
+ *      https://<SERVERNAME>:9260/api/CommandLineProcessor
+ *      
+ *  3. Check status of a job.
+ *      
+ *     https://<SERVERNAME>:9260/api/Job/569/Status
+ *  
+ *  
+ *  
+ *  
+ *
+ *
+*/

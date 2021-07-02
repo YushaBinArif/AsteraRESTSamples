@@ -6,6 +6,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace AsteraRESTSamples
 {
@@ -21,8 +22,7 @@ namespace AsteraRESTSamples
 
         static async Task Main(string[] args)
         {
-
-            
+            PrintDoc();
             RunningJob runningJob = new RunningJob();
 
             runningJob.ServerURI = _ServerUri;
@@ -31,15 +31,25 @@ namespace AsteraRESTSamples
             runningJob.RememberMe = _RememberMe;
 
             Authentication auth = await runningJob.GetAccessTokenFromServer();
+            
+            Console.WriteLine($"Access Token: {auth.AccessToken}");
+            
+
             Job job = await runningJob.RunJobOnServer(auth, _PATH_TO_DATAFLOW );
+
+            Console.WriteLine($"Job ID: {job.JobID}");
+            
+            
             string status = await runningJob.CheckJobStatus(auth,job.JobID);
 
             Console.WriteLine($"Status: {status}");
             
         }
 
-
-       
-
+        private static void PrintDoc()
+        {
+            
+            Console.WriteLine(File.ReadAllText("DOC.txt"));
+        }
     }
 }
