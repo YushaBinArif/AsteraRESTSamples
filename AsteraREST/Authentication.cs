@@ -5,9 +5,9 @@ using System.Text.Json.Serialization;
 
 namespace AsteraRESTSamples
 {
-    public class Token
+    public class Authentication
     {   
         [JsonPropertyName("access_token")]
-        public string BearerToken { get; set; }
+        public string AccessToken { get; set; }
     }
 }

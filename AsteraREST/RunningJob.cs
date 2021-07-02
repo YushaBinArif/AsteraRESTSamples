@@ -1,4 +1,4 @@
-﻿#
+﻿#region DOCUMENTATION
 /*
  *  Following samples are present in the file:
  *  
@@ -22,10 +22,15 @@
  *
 */
 
+#endregion
 
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace AsteraRESTSamples
 {
@@ -54,77 +59,146 @@ namespace AsteraRESTSamples
         /// </summary>
         public Int16 RememberMe { get; set; }
 
+        
 
-        private Token _AccessToken;
-        /// <summary>
-        /// This contains the server which we can then use to run jobs
-        /// </summary>
-        public Token AccessToken
+        #endregion
+
+        #region Job Related Functions
+
+
+        public async Task<Job> RunJobOnServer(Authentication auth, string jobPath)
         {
-            get
+           
+            var url = $"{ServerURI}/api/CommandLineProcessor";
+            
+            StringContent requestBody = CreateRequestBodyForJob(jobPath);
+            HttpClientHandler sslCertificateSettings = CreateCertificateSettings();
+            var client = new HttpClient(sslCertificateSettings);
+            Job job = await DeserializeRunJobResponse(client, url, requestBody, auth);
+            
+            client.Dispose();
+
+            return job;
+
+
+        }
+
+        private async Task<Job> DeserializeRunJobResponse(HttpClient client, string url, StringContent requestBody, Authentication auth)
+        {
+            
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {auth.AccessToken}");
+            var response = await client.PostAsync(url, requestBody);
+            string result = await response.Content.ReadAsStringAsync();
+            var job = System.Text.Json.JsonSerializer.Deserialize<Job>(result.ToString());
+
+            return job;
+        }
+
+        private StringContent CreateRequestBodyForJob(string jobPath)
+        {
+
+            string requestBodyParameters = JsonSerializer.Serialize(new
             {
-                if (_AccessToken== null)
-                {
-                    _AccessToken = GetServer();
-                }
-                return _AccessToken;
-            }
+                FilePath = jobPath
+            });
+
+            StringContent requestBody = new StringContent(requestBodyParameters, Encoding.UTF8, "application/json");
+
+            return requestBody;
+        }
+
+        public async Task<string> CheckJobStatus(Authentication auth,long jobId) {
+
+            var url = $"{ServerURI}/api/Job/{jobId}/Status";
+
+            HttpClientHandler sslCertificateSettings = CreateCertificateSettings();
+            var client = new HttpClient(sslCertificateSettings);
+            string status = await DeserializeCheckJobStatusResponse(client, url, auth);
+
+            client.Dispose();
+
+            return status;
+
+        }
+
+        private async Task<string> DeserializeCheckJobStatusResponse(HttpClient client, string url, Authentication auth)
+        {
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {auth.AccessToken}");
+            var response = await client.GetAsync(url);
+            string result = await response.Content.ReadAsStringAsync();
+            var status = System.Text.Json.JsonSerializer.Deserialize<string>(result.ToString());
+
+            return status;
         }
 
         #endregion
 
+        #region Authentication Functions
 
-        #region Authentication Methods
-
-        /// <summary>
-        /// Grabs the Access token from the server
-        /// </summary>
-        /// <param name="job">The job to be run</param>
-        /// <returns>The jobId</returns>
-        public long RunJobOnServer(Job job)
+        public async Task<Authentication> GetAccessTokenFromServer()
         {
-            // start the job and return the jobId
-            long jobId = ServerProxy.StartJob(job);
-            return jobId;
-        }
-
-        private ITransferServerProxy _Server;
-        /// <summary>
-        /// Gets the Server Proxy from the ServerConnection (server name and port number)
-        /// </summary>
-        /// <returns>A ServerProxy that can be used to start jobs</returns>
-        private ITransferServerProxy GetServer()
-        {
-
+            Authentication auth;
             try
             {
-                if (_Server == null)
-                {
-                    CreateServer();
-                }
-                return _Server;
-
+                auth = await CreateAccessToken(ServerURI);
             }
-            catch (ServerException ex)
+            catch (Exception ex)
             {
-
-                // throw any exeption when failing to grab the server proxy specified
                 throw ex;
-
             }
+
+            return auth;
 
         }
 
-        private void CreateServer()
+        public  async Task<Authentication> CreateAccessToken(string serverUri)
         {
-            AsteraAppContext.Servers = new ClientApis();
-            AsteraAppContext.Servers.CurrentServerUri = ServerURI;
-            // In order to run any job, we will first need the server connection. 
-            // This will only work if a server is already configured for use.
-            _Server = new TransferClient(ServerURI, Timeout, true);
-            var result = _Server.LoginUser(new LoginModel { User = Username, Password = Password, RememberMe = true });
-            if (result == null)
-                throw new CPException("Login failed.");
+
+            string url = $"{serverUri}/api/account/login";
+            StringContent requestBody = CreateRequestBodyForAuthentication();
+            HttpClientHandler sslCertificateSettings = CreateCertificateSettings();
+            HttpClient client = new HttpClient(sslCertificateSettings);
+
+            var authentication = await DeserializeAuthResponse(client, url, requestBody); ;
+
+            client.Dispose();
+
+            return authentication;
+        }
+
+        private static async Task<Authentication> DeserializeAuthResponse(HttpClient client, string url, StringContent requestBody)
+        {
+
+            var response = await client.PostAsync(url, requestBody);
+
+            string result = await response.Content.ReadAsStringAsync();
+
+            var authentication = System.Text.Json.JsonSerializer.Deserialize<Authentication>(result.ToString());
+
+            return authentication;
+        }
+
+        private static HttpClientHandler CreateCertificateSettings()
+        {
+            HttpClientHandler handler = new HttpClientHandler(); 
+            handler.ServerCertificateCustomValidationCallback = (a, b, c, d) => { return true; };  
+
+            return handler;
+        }
+
+        private  StringContent CreateRequestBodyForAuthentication()
+        {
+            string requestBodyParameters = JsonSerializer.Serialize(new
+            {
+                User = Username,
+                Password = Password,
+                RememberMe = RememberMe
+            });
+
+
+            StringContent requestBody = new StringContent(requestBodyParameters, Encoding.UTF8, "application/json");
+
+            return requestBody;
         }
 
         #endregion
