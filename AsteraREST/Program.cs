@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.IO;
+using System.Collections.Generic;
 
 namespace AsteraRESTSamples
 {
@@ -18,10 +19,12 @@ namespace AsteraRESTSamples
         private static string _Username = "admin";
         private static string _Password = "Admin123";
         private static Int16 _RememberMe = 1;
+        private static List<string> parametersForJob;
 
 
         static async Task Main(string[] args)
         {
+            parametersForJob = new List<string>();
             PrintDoc();
             RunningJob runningJob = new RunningJob();
 
@@ -33,14 +36,20 @@ namespace AsteraRESTSamples
             Authentication auth = await runningJob.GetAccessTokenFromServer();
             
             Console.WriteLine($"Access Token: {auth.AccessToken}");
-            
 
-            Job job = await runningJob.RunJobOnServer(auth, _PATH_TO_DATAFLOW );
 
-            Console.WriteLine($"Job ID: {job.JobID}");
+            //Job job = await runningJob.RunJobOnServer(auth, _PATH_TO_DATAFLOW );
+
+            parametersForJob.Add("someParameterValue");
+            parametersForJob.Add("anotherParameterValue");
+            Job jobWithParams = await runningJob.RunJobOnServerWithParameters(auth, _PATH_TO_DATAFLOW, parametersForJob);
+
+            //Console.WriteLine($"Job ID: {job.JobID}");
+            Console.WriteLine($"Job ID: {jobWithParams.JobID}");
             
             
-            string status = await runningJob.CheckJobStatus(auth,job.JobID);
+            //string status = await runningJob.CheckJobStatus(auth,job.JobID);
+            string status = await runningJob.CheckJobStatus(auth,jobWithParams.JobID);
 
             Console.WriteLine($"Status: {status}");
             

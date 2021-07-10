@@ -54,6 +54,20 @@ namespace AsteraRESTSamples
         /// </summary>
         public string Password { get; set; }
 
+        internal async Task<Job> RunJobOnServerWithParameters(Authentication auth, string jobPath, List<string> parameters)
+        {
+            var url = $"{ServerURI}/api/CommandLineProcessor";
+
+            StringContent requestBody = CreateRequestBodyForJobWithParams(jobPath, parameters);
+            HttpClientHandler sslCertificateSettings = CreateCertificateSettings();
+            var client = new HttpClient(sslCertificateSettings);
+            Job job = await DeserializeRunJobResponse(client, url, requestBody, auth);
+
+            client.Dispose();
+
+            return job;
+        }
+
         /// <summary>
         /// Set this value to 1 if you want to remain signed in, otherwise assign 0
         /// </summary>
@@ -101,6 +115,35 @@ namespace AsteraRESTSamples
             {
                 FilePath = jobPath
             });
+
+            StringContent requestBody = new StringContent(requestBodyParameters, Encoding.UTF8, "application/json");
+
+            return requestBody;
+        }
+
+        private StringContent CreateRequestBodyForJobWithParams(string jobPath, List<string> parameters)
+        {
+
+            string requestBodyParameters = JsonSerializer.Serialize(new
+            {
+                FilePath = jobPath,
+                Parameters = new[]
+                {
+                  new
+                   {
+                         ActionName = "Variables", // name of the variable object present inside the workflow / dataflow
+                         ParameterName = "var1", // name of the first input variable field present inside the variable object
+                         Value = parameters[0]  // value of the first input variable field inside the workflow document
+                   },
+                  new
+                   {
+                         ActionName = "Variables", // name of the variable object present inside the workflow / dataflow
+                         ParameterName = "var2", // name of the first input variable field present inside the variable o
+                         Value = parameters[1]  // value of the first input variable field inside the workflow document
+                   }
+
+                }
+            }); 
 
             StringContent requestBody = new StringContent(requestBodyParameters, Encoding.UTF8, "application/json");
 
